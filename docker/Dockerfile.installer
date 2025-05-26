@@ -1,0 +1,98 @@
+# PT Docker Installer 镜像
+# 用于在容器环境中运行安装脚本
+
+FROM ubuntu:22.04
+
+# 构建参数
+ARG BUILD_DATE
+ARG VERSION
+ARG VCS_REF
+
+# 镜像标签
+LABEL org.opencontainers.image.title="PT Docker Installer" \
+      org.opencontainers.image.description="PT用户专用的Docker一键安装脚本容器化版本" \
+      org.opencontainers.image.authors="everett7623" \
+      org.opencontainers.image.vendor="PT Docker Installer" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.url="https://github.com/everett7623/pt-docker-installer" \
+      org.opencontainers.image.source="https://github.com/everett7623/pt-docker-installer" \
+      org.opencontainers.image.documentation="https://github.com/everett7623/pt-docker-installer#readme" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.licenses="MIT"
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Shanghai \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    unzip \
+    tar \
+    gzip \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    apt-transport-https \
+    software-properties-common \
+    net-tools \
+    dnsutils \
+    netcat \
+    jq \
+    vim \
+    nano \
+    htop \
+    tree \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Docker CLI
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Docker Compose
+RUN DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name) \
+    && curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+
+# 创建工作目录
+WORKDIR /opt/pt-docker-installer
+
+# 复制项目文件
+COPY . .
+
+# 设置脚本权限
+RUN chmod +x *.sh scripts/*.sh
+
+# 创建必要的目录
+RUN mkdir -p /opt/docker /opt/downloads /opt/backups /var/log/pt-docker
+
+# 设置用户
+RUN groupadd -r ptuser && useradd -r -g ptuser ptuser \
+    && chown -R ptuser:ptuser /opt/pt-docker-installer /opt/docker /opt/downloads /opt/backups
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD /opt/pt-docker-installer/scripts/utils.sh test-system || exit 1
+
+# 设置入口点
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# 暴露常用端口 (仅用于文档目的)
+EXPOSE 8080 9091 8780 3000 8096 32400
+
+# 设置工作目录和用户
+USER ptuser
+WORKDIR /opt/pt-docker-installer
+
+# 入口点
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["--help"]
