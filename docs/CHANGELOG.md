@@ -38,14 +38,14 @@
 
 #### 📦 应用支持
 - **核心PT应用套件**:
-  - qBittorrent 4.6.7
-  - Transmission 4.0.5
-  - IYUU Plus (最新开发版)
-  - MoviePilot v2 (最新版)
+  - qBittorrent 4.6.7 - 功能强大的BT下载客户端
+  - Transmission 4.0.5 - 轻量级BT下载客户端  
+  - IYUU Plus (最新开发版) - PT自动化管理工具
+  - MoviePilot v2 (最新版) - 影视自动下载管理
 - **媒体服务器选择**:
-  - Emby (最新版)
-  - Jellyfin (最新版)
-  - Plex (最新版)
+  - Emby (最新版) - 功能强大的媒体服务器
+  - Jellyfin (最新版) - 完全免费开源媒体服务器
+  - Plex (最新版) - 主流媒体服务器
 
 #### 🛠️ 管理工具
 - **pt-docker 快捷命令** - 统一的服务管理命令
