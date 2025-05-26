@@ -1,0 +1,60 @@
+# Plex Docker Compose 配置
+# 媒体服务器 - 主流的媒体流媒体服务器
+
+version: '3.8'
+
+services:
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      # Plex Claim Token (从 https://plex.tv/claim 获取)
+      - PLEX_CLAIM=
+      # 广告服务器IP
+      - ADVERTISE_IP=http://${SERVER_IP}:32400/
+      # 版本控制
+      - VERSION=docker
+    volumes:
+      - ./plex/config:/config
+      - ./plex/transcode:/transcode
+      - /opt/downloads:/media:ro
+      # 字体文件支持中文显示
+      - /usr/share/fonts:/usr/share/fonts:ro
+    ports:
+      - "32400:32400"     # 主端口
+      - "3005:3005"       # Plex Home Theater
+      - "8324:8324"       # Roku控制端口
+      - "32469:32469"     # Plex DLNA服务器
+      - "1900:1900/udp"   # Plex DLNA服务器
+      - "32410:32410/udp" # GDM网络发现
+      - "32412:32412/udp" # GDM网络发现
+      - "32413:32413/udp" # GDM网络发现
+      - "32414:32414/udp" # GDM网络发现
+    devices:
+      # 硬件转码支持
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+    networks:
+      - pt-network
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:32400/identity"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pt-network:
+    driver: bridge
+    external: true
