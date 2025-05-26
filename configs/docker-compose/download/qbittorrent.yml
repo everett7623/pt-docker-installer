@@ -1,0 +1,29 @@
+# qBittorrent Docker Compose 配置
+# BT下载客户端 - 功能强大的BitTorrent客户端
+
+version: '3.8'
+
+services:
+  qbittorrent:
+    image: linuxserver/qbittorrent:4.6.7
+    container_name: qbittorrent
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - WEBUI_PORT=8080
+    volumes:
+      - ./qbittorrent/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "8080:8080"       # Web UI端口
+      - "6881:6881"       # BT端口 TCP
+      - "6881:6881/udp"   # BT端口 UDP
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+networks:
+  pt-network:
+    driver: bridge
+    external: true
