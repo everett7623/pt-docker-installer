@@ -714,7 +714,11 @@ check_services_status() {
 # 显示访问信息
 show_access_info() {
     local server_ip
-    server_ip=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' || echo "Your_Server_IP")
+    # 优先获取IPv4地址
+    server_ip=$(curl -4 -s --connect-timeout 5 ifconfig.me 2>/dev/null || \
+                curl -s --connect-timeout 5 ipv4.icanhazip.com 2>/dev/null || \
+                hostname -I | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' | head -1 || \
+                echo "Your_Server_IP")
     
     echo ""
     echo -e "${CYAN}========================================"
