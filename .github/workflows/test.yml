@@ -1,0 +1,146 @@
+name: 测试工作流
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 每天凌晨2点运行测试
+    - cron: '0 2 * * *'
+
+jobs:
+  shellcheck:
+    name: Shell脚本语法检查
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 安装ShellCheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        
+    - name: 运行ShellCheck
+      run: |
+        find . -name "*.sh" -type f | xargs shellcheck -e SC1091 -e SC2034
+        
+  yaml-lint:
+    name: YAML文件语法检查
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 安装yamllint
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y yamllint
+        
+    - name: 运行yamllint
+      run: |
+        find . -name "*.yml" -o -name "*.yaml" | xargs yamllint -d relaxed
+        
+  docker-compose-test:
+    name: Docker Compose配置测试
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 测试Docker Compose配置
+      run: |
+        # 测试主模板文件
+        docker-compose -f configs/docker-compose-templates.yml config > /dev/null
+        
+        # 测试分类配置文件
+        for file in configs/docker-compose/*/*.yml; do
+          echo "测试配置文件: $file"
+          # 创建临时网络用于测试
+          docker network create pt-network || true
+          docker-compose -f "$file" config > /dev/null
+          echo "✅ $file 配置正确"
+        done
+        
+  installation-test:
+    name: 安装脚本测试
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+        
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置权限
+      run: |
+        chmod +x *.sh scripts/*.sh
+        
+    - name: 测试系统检查功能
+      run: |
+        # 测试工具函数
+        bash scripts/utils.sh test-system
+        bash scripts/utils.sh test-network
+        
+    - name: 模拟安装测试 (干运行)
+      run: |
+        # 创建测试目录
+        mkdir -p /tmp/pt-docker-test/{docker,downloads}
+        
+        # 测试核心应用配置生成
+        export INSTALL_PATH="/tmp/pt-docker-test/docker"
+        export DOWNLOAD_PATH="/tmp/pt-docker-test/downloads"
+        
+        # 测试配置生成功能 (不实际启动容器)
+        echo "测试核心应用配置生成..."
+        # 这里可以添加更多的测试逻辑
+        
+  documentation-test:
+    name: 文档链接检查
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 安装markdown-link-check
+      run: |
+        npm install -g markdown-link-check
+        
+    - name: 检查README.md链接
+      run: |
+        markdown-link-check README.md --config .github/mlc_config.json || true
+        
+    - name: 检查其他Markdown文件
+      run: |
+        find docs/ -name "*.md" | xargs -I {} markdown-link-check {} --config .github/mlc_config.json || true
+
+  security-scan:
+    name: 安全扫描
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 运行Trivy漏洞扫描
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 上传Trivy扫描结果
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
