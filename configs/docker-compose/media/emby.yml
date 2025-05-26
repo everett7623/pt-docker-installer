@@ -1,0 +1,47 @@
+# Emby Docker Compose 配置
+# 媒体服务器 - 功能强大的媒体流媒体服务器
+
+version: '3.8'
+
+services:
+  emby:
+    image: emby/embyserver:latest
+    container_name: emby
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./emby/config:/config
+      - ./emby/cache:/cache
+      - /opt/downloads:/media
+      # 字体文件支持中文显示
+      - /usr/share/fonts:/usr/share/fonts:ro
+    ports:
+      - "8096:8096"  # HTTP端口
+      - "8920:8920"  # HTTPS端口
+    devices:
+      # 硬件转码支持
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+    networks:
+      - pt-network
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pt-network:
+    driver: bridge
+    external: true
