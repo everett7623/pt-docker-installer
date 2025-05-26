@@ -1,0 +1,167 @@
+name: Docker镜像构建
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # 每周一凌晨2点重新构建
+    - cron: '0 2 * * 1'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: 构建并推送Docker镜像
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    strategy:
+      matrix:
+        include:
+          - dockerfile: docker/Dockerfile.installer
+            image-name: pt-docker-installer
+            context: .
+          - dockerfile: docker/Dockerfile.toolkit  
+            image-name: pt-docker-toolkit
+            context: .
+            
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 登录Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 登录Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: 提取元数据
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image-name }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image-name }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 构建并推送Docker镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          VCS_REF=${{ github.sha }}
+
+  security-scan:
+    name: 安全扫描
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name != 'pull_request'
+    
+    strategy:
+      matrix:
+        image-name: [pt-docker-installer, pt-docker-toolkit]
+        
+    steps:
+    - name: 运行Trivy漏洞扫描
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image-name }}:latest'
+        format: 'sarif'
+        output: 'trivy-results-${{ matrix.image-name }}.sarif'
+        
+    - name: 上传Trivy扫描结果到GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results-${{ matrix.image-name }}.sarif'
+
+  test-images:
+    name: 测试Docker镜像
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name != 'pull_request'
+    
+    strategy:
+      matrix:
+        image-name: [pt-docker-installer, pt-docker-toolkit]
+        
+    steps:
+    - name: 测试镜像基本功能
+      run: |
+        # 拉取镜像
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image-name }}:latest
+        
+        # 运行基本测试
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image-name }}:latest --version
+        
+        # 测试帮助命令
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image-name }}:latest --help
+
+  update-readme:
+    name: 更新README徽章
+    runs-on: ubuntu-latest
+    needs: [build-and-push, security-scan, test-images]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 更新Docker镜像徽章
+      run: |
+        # 获取镜像大小和层数信息
+        INSTALLER_SIZE=$(docker inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/pt-docker-installer:latest --format='{{.Size}}' | numfmt --to=iec)
+        TOOLKIT_SIZE=$(docker inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/pt-docker-toolkit:latest --format='{{.Size}}' | numfmt --to=iec)
+        
+        # 更新README中的徽章信息
+        sed -i "s/Docker%20Size-.*-blue/Docker%20Size-${INSTALLER_SIZE}-blue/g" README.md
+        
+        # 提交更改
+        if git diff --quiet; then
+          echo "没有需要更新的内容"
+        else
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git commit -m "🤖 自动更新Docker镜像信息"
+          git push
+        fi
