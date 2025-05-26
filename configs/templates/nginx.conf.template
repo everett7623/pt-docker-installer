@@ -131,4 +131,125 @@ http {
         location /tr/ {
             proxy_pass http://transmission/transmission/;
             proxy_set_header Host $host;
-            proxy_set_header
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        # MoviePilot反向代理
+        location /mp/ {
+            proxy_pass http://moviepilot/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket支持
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+        
+        # Emby反向代理
+        location /emby/ {
+            proxy_pass http://emby/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # 缓冲区设置
+            proxy_buffering off;
+            proxy_buffer_size 128k;
+            proxy_buffers 4 256k;
+            proxy_busy_buffers_size 256k;
+        }
+        
+        # Jellyfin反向代理
+        location /jellyfin/ {
+            proxy_pass http://jellyfin/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # 缓冲区设置
+            proxy_buffering off;
+            proxy_buffer_size 128k;
+            proxy_buffers 4 256k;
+            proxy_busy_buffers_size 256k;
+        }
+        
+        # Plex反向代理
+        location /plex/ {
+            proxy_pass http://plex/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # Plex特殊配置
+            proxy_redirect off;
+            proxy_buffering off;
+            proxy_buffer_size 128k;
+            proxy_buffers 4 256k;
+            proxy_busy_buffers_size 256k;
+        }
+    }
+    
+    # 单独的应用服务器配置 (可选)
+    
+    # qBittorrent独立域名
+    server {
+        listen 443 ssl http2;
+        server_name qb.${DOMAIN_NAME};
+        
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        
+        location / {
+            proxy_pass http://qbittorrent;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    
+    # MoviePilot独立域名
+    server {
+        listen 443 ssl http2;
+        server_name mp.${DOMAIN_NAME};
+        
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        
+        location / {
+            proxy_pass http://moviepilot;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    
+    # Emby独立域名
+    server {
+        listen 443 ssl http2;
+        server_name emby.${DOMAIN_NAME};
+        
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        
+        location / {
+            proxy_pass http://emby;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # 特殊头部支持
+            proxy_set_header X-Emby-Authorization $http_x_emby_authorization;
+        }
+    }
+}
