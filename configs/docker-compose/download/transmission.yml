@@ -1,0 +1,31 @@
+# Transmission Docker Compose 配置
+# BT下载客户端 - 轻量级BitTorrent客户端
+
+version: '3.8'
+
+services:
+  transmission:
+    image: linuxserver/transmission:4.0.5
+    container_name: transmission
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - USER=admin
+      - PASS=adminadmin
+      - TRANSMISSION_WEB_HOME=/config/webui/transmission-web-control
+    volumes:
+      - ./transmission/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "9091:9091"       # Web UI端口
+      - "51413:51413"     # BT端口 TCP
+      - "51413:51413/udp" # BT端口 UDP
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+networks:
+  pt-network:
+    driver: bridge
+    external: true
