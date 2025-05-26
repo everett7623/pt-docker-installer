@@ -24,8 +24,6 @@ COMPOSE_FILE="docker-compose.yml"
 declare -A DOWNLOAD_APPS=(
     ["qbittorrent"]="qBittorrent - BT下载客户端"
     ["transmission"]="Transmission - BT下载客户端"
-    ["aria2"]="Aria2 - 多协议下载工具"
-    ["deluge"]="Deluge - BT下载客户端"
 )
 
 declare -A AUTOMATION_APPS=(
@@ -243,31 +241,6 @@ EOF
       - pt-network
 EOF
             mkdir -p "$INSTALL_PATH/transmission"
-            ;;
-            
-        "aria2")
-            cat >> "$INSTALL_PATH/$COMPOSE_FILE" << EOF
-
-  aria2:
-    image: p3terx/aria2-pro:latest
-    container_name: aria2
-    environment:
-      - PUID=0
-      - PGID=0
-      - TZ=Asia/Shanghai
-      - RPC_SECRET=P3TERX
-    volumes:
-      - ./aria2/config:/config
-      - $DOWNLOAD_PATH:/downloads
-    ports:
-      - "6800:6800"
-      - "6880:6880"
-      - "6880:6880/udp"
-    restart: unless-stopped
-    networks:
-      - pt-network
-EOF
-            mkdir -p "$INSTALL_PATH/aria2"
             ;;
             
         "sonarr")
