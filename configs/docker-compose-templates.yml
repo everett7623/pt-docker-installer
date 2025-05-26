@@ -1,0 +1,683 @@
+# PT Docker 应用配置模板
+# 包含所有支持应用的Docker Compose配置
+# 可根据需要复制对应配置到主docker-compose.yml文件
+
+version: '3.8'
+
+services:
+  # ================================
+  # 下载管理工具
+  # ================================
+  
+  qbittorrent:
+    image: linuxserver/qbittorrent:4.6.7
+    container_name: qbittorrent
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - WEBUI_PORT=8080
+    volumes:
+      - ./qbittorrent/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  transmission:
+    image: linuxserver/transmission:4.0.5
+    container_name: transmission
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - USER=admin
+      - PASS=adminadmin
+    volumes:
+      - ./transmission/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "9091:9091"
+      - "51413:51413"
+      - "51413:51413/udp"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  aria2:
+    image: p3terx/aria2-pro:latest
+    container_name: aria2
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - RPC_SECRET=P3TERX
+      - RPC_PORT=6800
+    volumes:
+      - ./aria2/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "6800:6800"
+      - "6880:6880"
+      - "6880:6880/udp"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  deluge:
+    image: linuxserver/deluge:latest
+    container_name: deluge
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./deluge/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "8112:8112"
+      - "58846:58846"
+      - "58946:58946"
+      - "58946:58946/udp"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  # ================================
+  # 自动化管理工具
+  # ================================
+
+  iyuuplus:
+    image: iyuucn/iyuuplus-dev:latest
+    container_name: iyuuplus
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./iyuuplus/iyuu:/iyuu
+      - ./iyuuplus/data:/data
+      - ./qbittorrent/config/qBittorrent/BT_backup:/qb
+      - ./transmission/config/torrents:/tr
+    ports:
+      - "8780:8780"
+    restart: always
+    networks:
+      - pt-network
+
+  moviepilot:
+    image: jxxghp/moviepilot-v2:latest
+    container_name: moviepilot
+    stdin_open: true
+    tty: true
+    hostname: moviepilot
+    volumes:
+      - /opt/downloads:/media
+      - ./moviepilot/config:/config
+      - ./moviepilot/core:/moviepilot/.cache/ms-playwright
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./qbittorrent/config/qBittorrent/BT_backup:/qb
+      - ./transmission/config/torrents:/tr
+    environment:
+      - NGINX_PORT=3000
+      - PORT=3001
+      - PUID=0
+      - PGID=0
+      - UMASK=000
+      - TZ=Asia/Shanghai
+      - SUPERUSER=admin
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    restart: always
+    networks:
+      - pt-network
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./sonarr/config:/config
+      - /opt/downloads:/downloads
+      - /opt/downloads/tv:/tv
+    ports:
+      - "8989:8989"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./radarr/config:/config
+      - /opt/downloads:/downloads
+      - /opt/downloads/movies:/movies
+    ports:
+      - "7878:7878"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  lidarr:
+    image: linuxserver/lidarr:latest
+    container_name: lidarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./lidarr/config:/config
+      - /opt/downloads:/downloads
+      - /opt/downloads/music:/music
+    ports:
+      - "8686:8686"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./prowlarr/config:/config
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./bazarr/config:/config
+      - /opt/downloads/movies:/movies
+      - /opt/downloads/tv:/tv
+    ports:
+      - "6767:6767"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  autobrr:
+    image: ghcr.io/autobrr/autobrr:latest
+    container_name: autobrr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./autobrr/config:/config
+    ports:
+      - "7474:7474"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  cross-seed:
+    image: crossseed/cross-seed:latest
+    container_name: cross-seed
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./cross-seed/config:/config
+      - /opt/downloads:/data
+      - ./qbittorrent/config/qBittorrent/BT_backup:/torrents
+    ports:
+      - "2468:2468"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  nastools:
+    image: 0xforee/nas-tools:latest
+    container_name: nastools
+    environment:
+      - PUID=0
+      - PGID=0
+      - UMASK=000
+      - NASTOOL_AUTO_UPDATE=true
+      - NASTOOL_CN_UPDATE=false
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./nastools/config:/config
+      - /opt/downloads:/media
+    ports:
+      - "3333:3000"
+    restart: always
+    networks:
+      - pt-network
+
+  # ================================
+  # 媒体服务器
+  # ================================
+
+  emby:
+    image: emby/embyserver:latest
+    container_name: emby
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./emby/config:/config
+      - /opt/downloads:/media
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+    devices:
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=0
+      - PGID=0 
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - /opt/downloads:/media:ro
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+      - "7359:7359/udp"
+      - "1900:1900/udp"
+    devices:
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - PLEX_CLAIM=
+    volumes:
+      - ./plex/config:/config
+      - ./plex/transcode:/transcode
+      - /opt/downloads:/media:ro
+    ports:
+      - "32400:32400"
+    devices:
+      - /dev/dri:/dev/dri
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    environment:
+      - ND_MUSICFOLDER=/music
+      - ND_DATADIR=/data
+      - ND_ENABLETRANSCODINGCONFIG=true
+      - ND_LOGLEVEL=info
+      - ND_SESSIONTIMEOUT=24h
+    volumes:
+      - ./navidrome/data:/data
+      - /opt/downloads/music:/music:ro
+    ports:
+      - "4533:4533"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    environment:
+      - AUDIOBOOKSHELF_UID=0
+      - AUDIOBOOKSHELF_GID=0
+    volumes:
+      - ./audiobookshelf/config:/config
+      - ./audiobookshelf/metadata:/metadata
+      - /opt/downloads/audiobooks:/audiobooks
+      - /opt/downloads/podcasts:/podcasts
+    ports:
+      - "13378:80"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  # ================================
+  # 搜索工具
+  # ================================
+
+  jackett:
+    image: linuxserver/jackett:latest
+    container_name: jackett
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./jackett/config:/config
+      - /opt/downloads:/downloads
+    ports:
+      - "9117:9117"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=Asia/Shanghai
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  # ================================
+  # 文件管理工具
+  # ================================
+
+  filebrowser:
+    image: hurlenko/filebrowser:latest
+    container_name: filebrowser
+    environment:
+      - UID=0
+      - GID=0
+      - TZ=Asia/Shanghai
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./filebrowser/config:/config
+      - /opt/downloads:/data
+      - /opt:/opt:ro
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  alist:
+    image: xhofe/alist:latest
+    container_name: alist
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./alist/data:/opt/alist/data
+    ports:
+      - "5244:5244"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./nextcloud/data:/var/www/html
+      - /opt/downloads:/data
+    ports:
+      - "8090:80"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  syncthing:
+    image: linuxserver/syncthing:latest
+    container_name: syncthing
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./syncthing/config:/config
+      - /opt/downloads:/data
+    ports:
+      - "8384:8384"
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+      - "21027:21027/udp"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  # ================================
+  # 网络工具
+  # ================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    volumes:
+      - ./nginx/config:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  frp:
+    image: fatedier/frps:latest
+    container_name: frp
+    volumes:
+      - ./frp/frps.ini:/etc/frp/frps.ini
+    ports:
+      - "7000:7000"
+      - "7500:7500"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+      - SERVERURL=wireguard.domain.com
+      - SERVERPORT=51820
+      - PEERS=1
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.13.13.0
+    volumes:
+      - ./wireguard/config:/config
+      - /lib/modules:/lib/modules
+    ports:
+      - "51820:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  # ================================
+  # 监控管理工具
+  # ================================
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/data:/data
+    networks:
+      - pt-network
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    environment:
+      - TZ=Asia/Shanghai
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 0 4 * * 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  netdata:
+    image: netdata/netdata:latest
+    container_name: netdata
+    hostname: netdata
+    ports:
+      - "19999:19999"
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - pt-network
+
+  librespeed:
+    image: linuxserver/librespeed:latest
+    container_name: librespeed
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./librespeed/config:/config
+    ports:
+      - "8888:80"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  # ================================
+  # 特殊应用
+  # ================================
+
+  vertex:
+    image: lswl/vertex:stable
+    container_name: vertex
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./vertex:/vertex
+    ports:
+      - "3334:3000"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  metatube:
+    image: ghcr.io/metatube-community/metatube-server:latest
+    container_name: metatube
+    ports:
+      - "9080:8080"
+    volumes:
+      - ./metatube/config:/config
+    command: -dsn /config/metatube.db
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  byte-muse:
+    image: envyafish/byte-muse:latest
+    container_name: byte-muse
+    restart: always
+    ports:
+      - "8043:80"
+    volumes:
+      - ./byte-muse:/data
+    networks:
+      - pt-network
+
+  calibre-web:
+    image: linuxserver/calibre-web:latest
+    container_name: calibre-web
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./calibre-web/config:/config
+      - /opt/downloads/books:/books
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+  chinesesubfinder:
+    image: allanpk716/chinesesubfinder:latest
+    container_name: chinesesubfinder
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./chinesesubfinder/config:/config
+      - /opt/downloads/movies:/movies
+      - /opt/downloads/tv:/tv
+    ports:
+      - "19035:19035"
+    restart: unless-stopped
+    networks:
+      - pt-network
+
+# ================================
+# 网络配置
+# ================================
+networks:
+  pt-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ================================
+# 卷配置 (可选)
+# ================================
+volumes:
+  portainer_data:
+  nextcloud_data:
+  mysql_data:
