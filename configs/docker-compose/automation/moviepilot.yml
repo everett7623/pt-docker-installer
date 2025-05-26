@@ -1,0 +1,48 @@
+# MoviePilot Docker Compose 配置
+# 影视自动下载管理 - 智能影视资源管理工具
+
+version: '3.8'
+
+services:
+  moviepilot:
+    image: jxxghp/moviepilot-v2:latest
+    container_name: moviepilot
+    stdin_open: true
+    tty: true
+    hostname: moviepilot
+    volumes:
+      - /opt/downloads:/media
+      - ./moviepilot/config:/config
+      - ./moviepilot/core:/moviepilot/.cache/ms-playwright
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # 下载器种子目录映射
+      - ../download/qbittorrent/config/qBittorrent/BT_backup:/qb
+      - ../download/transmission/config/torrents:/tr
+    environment:
+      - NGINX_PORT=3000
+      - PORT=3001
+      - PUID=0
+      - PGID=0
+      - UMASK=000
+      - TZ=Asia/Shanghai
+      - SUPERUSER=admin
+      # 数据库配置(可选)
+      - DB_HOST=
+      - DB_PORT=3306
+      - DB_USER=
+      - DB_PASS=
+      - DB_NAME=moviepilot
+    ports:
+      - "3000:3000"  # Web UI端口
+      - "3001:3001"  # API端口
+    restart: always
+    networks:
+      - pt-network
+    depends_on:
+      - qbittorrent
+      - transmission
+
+networks:
+  pt-network:
+    driver: bridge
+    external: true
